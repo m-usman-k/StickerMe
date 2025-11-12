@@ -1,14 +1,22 @@
-#!/usr/bin/env python3
-"""
-StickerMe - Discord AI Image Generator Bot
-A Discord bot that generates images using Stability AI's API through slash commands.
-"""
+# ----- Modules -----
+# Discord
+import discord
+from discord import app_commands
+from discord.ext import commands
 
-import os
-import sys
-import json
+# Helpers
 from datetime import datetime
 from pathlib import Path
+import aiohttp, io, os, sys, base64
+
+# Environment
+from dotenv import load_dotenv
+
+# Defaults
+from defaults.image_settings import DEFAULT_CONFIG, ASPECT_RATIOS
+from defaults.image_settings import QUALITY_PRESETS, STYLE_PRESETS
+
+
 
 # Fix for Python 3.13 compatibility with discord.py
 try:
@@ -24,14 +32,6 @@ except ImportError:
     audioop.rms = lambda *args: 0
     sys.modules['audioop'] = audioop
 
-import discord
-from discord import app_commands
-from discord.ext import commands
-import aiohttp
-import asyncio
-import io
-import base64
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -74,46 +74,6 @@ class DownloadView(discord.ui.View):
                 ephemeral=True
             )
 
-# Image generation settings
-DEFAULT_CONFIG = {
-    "width": 1024,
-    "height": 1024,
-    "cfg_scale": 7,
-    "steps": 30,
-    "samples": 1,
-    "model": "stable-diffusion-xl-1024-v1-0"
-}
-
-# Aspect ratio presets
-ASPECT_RATIOS = {
-    "square": (1024, 1024),
-    "portrait": (832, 1216),
-    "landscape": (1216, 832),
-    "wide": (1344, 768),
-    "tall": (768, 1344),
-    "ultrawide": (1536, 640),
-    "ultratall": (640, 1536)
-}
-
-# Quality presets
-QUALITY_PRESETS = {
-    "fast": {"steps": 20, "cfg_scale": 7},
-    "standard": {"steps": 30, "cfg_scale": 7},
-    "high": {"steps": 50, "cfg_scale": 8},
-    "ultra": {"steps": 75, "cfg_scale": 8}
-}
-
-# Style presets
-STYLE_PRESETS = {
-    "photographic": "photographic, realistic, detailed, high quality",
-    "artistic": "artistic, creative, stylized, vibrant",
-    "cinematic": "cinematic, dramatic lighting, movie still, professional",
-    "anime": "anime style, manga, cel shaded, colorful",
-    "oil_painting": "oil painting, textured, artistic, traditional",
-    "watercolor": "watercolor, soft, flowing, artistic",
-    "digital_art": "digital art, clean, modern, professional",
-    "sketch": "sketch, pencil drawing, monochrome, artistic"
-}
 
 # Bot configuration
 intents = discord.Intents.default()
@@ -193,22 +153,21 @@ image_generator = ImageGenerator(STABILITY_API_KEY)
 
 @bot.event
 async def on_ready():
-    """Called when the bot is ready"""
-    print(f'{bot.user} has connected to Discord!')
-    print(f'Bot is in {len(bot.guilds)} guild(s)')
-    
-    # Set bot activity
     activity = discord.Activity(
         type=discord.ActivityType.watching,
         name="AI image generation with /generate"
     )
     await bot.change_presence(activity=activity)
+    print("🟢 | Changed bot's presence")
     
-    try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} command(s)")
-    except Exception as e:
-        print(f"Failed to sync commands: {e}")
+    
+    await bot.load_extension("cogs.Image")
+    print("🟢 | Loaded all extensions")
+    
+    
+    await bot.tree.sync()
+    print("🟢 | Synced all commands")
+    
 
 @bot.tree.command(name="generate", description="Generate an AI image with advanced parameters")
 @app_commands.describe(
